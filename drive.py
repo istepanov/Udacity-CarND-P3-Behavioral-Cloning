@@ -1,3 +1,8 @@
+# How to run:
+#
+# docker run -it --rm -v `pwd`:/src -p 4567:4567 udacity/carnd-term1-starter-kit python drive.py model.h5
+#
+
 import argparse
 import base64
 from datetime import datetime
