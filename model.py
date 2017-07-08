@@ -25,13 +25,24 @@ BATCH_SIZE = 64
 EPOCHS = 20
 
 
+def random_brightness(image):
+    brightness = np.random.uniform() + 0.5
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    image = np.array(image, dtype = np.float64)
+    image[:,:,2] = image[:,:,2] * brightness
+    image[:,:,2][image[:,:,2] > 255] = 255
+    image = np.array(image, dtype = np.uint8)
+    image = cv2.cvtColor(image,cv2.COLOR_HSV2RGB)
+    return image
+
+
 def generator(samples, batch_size, training=False):
     num_samples = len(samples)
 
     images_and_angles = [
         (0, 0.0),   # center
-        (1, 0.1),   # left
-        (2, -0.1),  # right
+        (1, 0.15),   # left
+        (2, -0.15),  # right
     ] if training else [(0, 0.0)] # just center if not training
 
     while True: # Loop forever so the generator never terminates
@@ -46,9 +57,13 @@ def generator(samples, batch_size, training=False):
                     image = cv2.imread(image_file)
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                     angle = float(batch_sample[3]) + angle_adjust
-                    if training and random.random() > 0.5:
-                        image = cv2.flip(image, 1)
-                        angle *= -1
+                    if training:
+                        augment_mode = random.choice([None, 'flip', 'brightness'])
+                        if augment_mode == 'flip':
+                            image = cv2.flip(image, 1)
+                            angle *= -1
+                        elif augment_mode == 'brightness':
+                            image = random_brightness(image)
                     images.append(image)
                     angles.append(angle)
             x = np.array(images)
