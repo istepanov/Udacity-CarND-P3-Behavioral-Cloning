@@ -1,8 +1,8 @@
 # CPU:
-# docker run -it --rm -v `pwd`:/src udacity/carnd-term1-starter-kit python model.py train/driving_log.csv model.h5
+# docker run -it --rm -v `pwd`:/src udacity/carnd-term1-starter-kit python model.py train/**/driving_log.csv model.h5
 #
 # GPU:
-# nvidia-docker run -it --rm -v `pwd`:/src istepanov/carnd-gpu python model.py train/driving_log.csv model.h5
+# nvidia-docker run -it --rm -v `pwd`:/src istepanov/carnd-gpu python model.py train/**/driving_log.csv model.h5
 #
 
 import argparse
@@ -25,7 +25,7 @@ BATCH_SIZE = 64
 EPOCHS = 20
 
 
-def generator(samples, batch_size, base_train_folder, training=False):
+def generator(samples, batch_size, training=False):
     num_samples = len(samples)
 
     images_and_angles = [
@@ -42,7 +42,7 @@ def generator(samples, batch_size, base_train_folder, training=False):
             angles = []
             for batch_sample in batch_samples:
                 for batch_sample_index, angle_adjust in images_and_angles:
-                    image_file = os.path.join(base_train_folder, batch_sample[batch_sample_index])
+                    image_file = batch_sample[batch_sample_index]
                     image = cv2.imread(image_file)
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                     angle = float(batch_sample[3]) + angle_adjust
@@ -59,10 +59,11 @@ def generator(samples, batch_size, base_train_folder, training=False):
 def main():
     parser = argparse.ArgumentParser(description='Train the model.')
     parser.add_argument(
-        'driving_log',
+        'driving_logs',
         type=str,
+        nargs='+',
         default='',
-        help='Path to driving log csv file.'
+        help='Paths to driving log csv file (hint: you can put wildcard mask here)'
     )
     parser.add_argument(
         'model_file',
@@ -72,15 +73,19 @@ def main():
     )
     args = parser.parse_args()
 
-    assert(os.path.isfile(args.driving_log))
-
-    base_train_folder = os.path.dirname(args.driving_log)
-
     samples = []
-    with open(args.driving_log) as csv_file:
-        reader = csv.reader(csv_file)
-        for line in reader:
-            samples.append(line)
+
+    for csv_file_name in args.driving_logs:
+        assert(os.path.isfile(csv_file_name))
+        print(csv_file_name)
+        dirname = os.path.dirname(csv_file_name)
+        with open(csv_file_name) as csv_file:
+            reader = csv.reader(csv_file)
+            for line in reader:
+                for i in range(0, 3):
+                    line[i] = os.path.join(dirname, line[i])
+                    assert(os.path.isfile(line[i]))
+                samples.append(line)
 
     train_samples, validation_samples = sklearn.model_selection.train_test_split(samples, test_size=0.2)
 
@@ -113,8 +118,8 @@ def main():
     model.compile(loss='mse', optimizer=Adam(lr=LEARNING_RATE))
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=5, verbose=0, mode='min')
-    training_generator = generator(samples=train_samples, batch_size=BATCH_SIZE, base_train_folder=base_train_folder, training=True)
-    validation_generator = generator(samples=validation_samples, batch_size=BATCH_SIZE, base_train_folder=base_train_folder)
+    training_generator = generator(samples=train_samples, batch_size=BATCH_SIZE, training=True)
+    validation_generator = generator(samples=validation_samples, batch_size=BATCH_SIZE)
 
     model.fit_generator(
         generator=training_generator,
