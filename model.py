@@ -17,12 +17,13 @@ from keras import backend as K
 from keras.models import Sequential
 from keras.layers import Flatten, Dense, Lambda, Conv2D, MaxPooling2D, Dropout, Cropping2D
 from keras.optimizers import Adam
-from keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 
 
-LEARNING_RATE = 0.00005
+LEARNING_RATE = 0.0005
 BATCH_SIZE = 64
-EPOCHS = 20
+EPOCHS = 30     # value is too big, but we gonna stop earlier thanks to early stopping callback
+EARLY_STOPPING_PATIENCE = 3
 
 
 def random_brightness(image):
@@ -130,9 +131,23 @@ def main():
     model.add(Dense(10, activation='elu', init='glorot_uniform'))
     model.add(Dense(1, init='glorot_uniform'))
 
+    # model.load_weights('.checkpoint.h5')
+
     model.compile(loss='mse', optimizer=Adam(lr=LEARNING_RATE))
 
-    early_stopping = EarlyStopping(monitor='val_loss', patience=5, verbose=0, mode='min')
+    checkpoint = ModelCheckpoint(
+        '.checkpoint.h5',
+        monitor='val_loss',
+        save_best_only=True,
+        save_weights_only=True,
+        mode='min'
+    )
+    early_stopping = EarlyStopping(
+        monitor='val_loss',
+        patience=EARLY_STOPPING_PATIENCE,
+        mode='min'
+    )
+
     training_generator = generator(samples=train_samples, batch_size=BATCH_SIZE, training=True)
     validation_generator = generator(samples=validation_samples, batch_size=BATCH_SIZE)
 
@@ -142,9 +157,17 @@ def main():
         validation_data=validation_generator,
         nb_val_samples=len(validation_samples),
         nb_epoch=EPOCHS,
-        callbacks=[early_stopping]
+        callbacks=[early_stopping, checkpoint]
     )
+
+    # reload best weight
+    model.load_weights('.checkpoint.h5')
+
+    # save to target model file
     model.save(args.model_file)
+
+    # don't need checkpoint anymore
+    os.remove('.checkpoint.h5')
 
     # workaround for https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()
