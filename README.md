@@ -39,23 +39,22 @@ The model.py file contains the code for training and saving the convolution neur
 
 #### 1. An appropriate model architecture has been employed
 
-My model consists of a convolution neural network with 3x3 filter sizes and depths between 32 and 128 (model.py lines 18-24)
-
-The model includes RELU layers to introduce nonlinearity (code line 20), and the data is normalized in the model using a Keras lambda layer (code line 18).
+I've chosen NVIDIA's [end-to-end learning model](https://arxiv.org/pdf/1604.07316.pdf) since it's the model designed to solve this type of problem.
+My model consists of a convolution neural network with 3x3 and 5x5 filter sizes and depths between 24 and 64 (model.py lines 141-151). Before entering convolution layers, data is cropped (model.py lines 141) and normalized (model.py lines 142). On top of convolutional layers, there are 4 fully connected layers with 1164 neurons as input and one neuron as output (model.py lines 154-161). Each layer (except the very last one) uses ELU as an activation function, that [is proved to perform better than ReLU](https://arxiv.org/pdf/1511.07289.pdf).
 
 #### 2. Attempts to reduce overfitting in the model
 
-The model contains dropout layers in order to reduce overfitting (model.py lines 21).
+The model contains 20% dropout layers in order to reduce overfitting (model.py lines 144 and below).
 
-The model was trained and validated on different data sets to ensure that the model was not overfitting (code line 10-16). The model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
+The model was trained and validated on different data sets to ensure that the model was not overfitting (model.py line 128). The model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
 
 #### 3. Model parameter tuning
 
-The model used an adam optimizer, so the learning rate was not tuned manually (model.py line 25).
+The model used an Adam optimizer (model.py lines 165), batch size 64, 30 epochs with early stopping with patience 3 when validation loss stops decreasing (model.py line 175).
 
 #### 4. Appropriate training data
 
-Training data was chosen to keep the vehicle driving on the road. I used a combination of center lane driving, recovering from the left and right sides of the road.
+Training data was chosen to keep the vehicle driving on the road. I used a combination of center lane driving, recovering from the left and right sides of the road, 2 different track, 2 driving directions on each track.
 
 For details about how I created the training data, see the next section.
 
@@ -63,23 +62,21 @@ For details about how I created the training data, see the next section.
 
 #### 1. Solution Design Approach
 
-The overall strategy for deriving a model architecture was to ...
+My approach to solve the problem was next:
 
-My first step was to use a convolution neural network model similar to the ... I thought this model might be appropriate because ...
+1. Test that all components are working together, I can generate test data, I can use GPU for training, the simulator can communicate with the trained model. For that, I used a trivial one-layer network. Of cause, it performed very badly and yielded random steering angles, but I made sure all components work.
 
-In order to gauge how well the model was working, I split my image and steering angle data into a training and validation set. I found that my first model had a low mean squared error on the training set but a high mean squared error on the validation set. This implied that the model was overfitting.
+2. I tried LeNet architecture since I worked with it on the previous project and it's very fast to train and test - the result was still bad, the car couldn't stay on the track. It was obvious for me I need something bigger and more powerful.
 
-To combat the overfitting, I modified the model so that ...
+3. I decided to use NVIDIA's model because this model is designed for this type of problem, so why re-invent the steering wheel 😀?
 
-Then I ...
+4. Initial training included just one lap on track 1 - that wasn't enough, there were issues with some corner cases so I needed to gather more training data (see below in the section about training and validation sets).
 
-The final step was to run the simulator to see how well the car was driving around track one. There were a few spots where the vehicle fell off the track... to improve the driving behavior in these cases, I ....
-
-At the end of the process, the vehicle is able to drive autonomously around the track without leaving the road.
+5. At the end of the process, the vehicle is able to drive autonomously around both tracks without leaving the road. Mission accomplished.
 
 #### 2. Final Model Architecture
 
-The final model architecture (model.py lines 18-24) consisted of a convolution neural network with the following layers and layer sizes ...
+The final model architecture (model.py lines 18-24) consisted of a convolution neural network with the following layers and layer sizes:
 
 ```
 ____________________________________________________________________________________________________
@@ -139,31 +136,46 @@ To capture good driving behavior, I first recorded two laps on track one using c
 
 ![](images/center1.jpg)
 
-Also, there are images from letf and right cameras. During training, these images are being used together with central camera images, but with adjusted steering angle - we got 3 times more training data and the model learns better how to recover from off-center position.
+Also, there are images from left and right cameras. During training, these images are being used together with central camera images, but with adjusted steering angle - we got 3 times more training data and the model learns better how to recover from off-center position.
 
 ![](images/left1.jpg)
 ![](images/right1.jpg)
 
-To get even better recovering abilities, I've recorded the vehicle starting its movement from the left side and right sides of the road back to center:
+To get even better recovering, I've recorded the vehicle starting its movement from the left side and right sides of the road back to center:
 
 ![](images/center2.jpg)
 
-On the image above, the vehicle is recovering from the right side of the road while being located next to the water surface - the model had hard time distinguishing road surface vs water surface on early stages of training (or maybe it just liked swimming better then driving 😀):
+On the image above, the vehicle is recovering from the right side of the road while being located next to a water surface - the model had a hard time distinguishing road surface vs water surface on early stages of training (or maybe it just liked swimming better than driving 😀):
 
 ![](images/fail1.png)
 
-Then I repeated this process on track 2 in order to get more data points. Here's another example of a failed image recognition - the car thinks the road goes straight forward, althought it's just a background and the real road turns right:
+Then I repeated this process on track 2 in order to get more data points. Here's another example of a failed image recognition - the car thinks the road goes straight forward, although it's just a background and the real road turns right:
 
 ![](images/fail2.png)
 
 To fix this, I had to do additional recovery training on that particular spot of the road.
 
-To augment the data sat, I also flipped images and angles thinking that this would ... For example, here is an image that has then been flipped:
+I randomly applied train data augmentations to help the model to generalize better:
 
-![](images/todo1.jpg)
-![](images/todo2.jpg)
+1. One-third of all images are randomly flipped
 
-Total number of images:
+    ![](images/flip-before.jpg) →
+    ![](images/flip-after.jpg)
+
+2. Another one-third was made randomly darker or brighter
+
+    ![](images/brightness1-before.jpg) →
+    ![](images/brightness1-after.jpg)
+
+    ![](images/brightness2-before.jpg) →
+    ![](images/brightness2-after.jpg)
+
+Finally, I've cropped 50 pixels from the top (removing sky) and 20 pixels from the bottom (car hood) - this is noise the model shouldn't care about.
+
+![](images/crop-before.jpg) →
+![](images/crop-after.jpg)
+
+The total number of images:
 
 * train samples: 14,765 (we can count it as 44,295 samples because every sample has 3 images from left, center, and right cameras)
 * validation samples: 3,692 (random 20% of all samples, just central camera)
@@ -256,4 +268,4 @@ Epoch 30/30
 
 1. On track 1 the car occasionally starts moving left and right instead of just staying in the middle of the road. It feels like even more training data could solve this problem.
 
-2. On track 2 the car moves in the middle of the road, using the central line as a guide line, instead of using the left lane. I tried to train the model to stay on the left lane only, but because I randomly flipping training images, the model got confused about left and right lanes, that affected driving stability of the car. Looks like image flipping isn't a good idea for real world multi-lane traffic.
+2. On track 2 the car moves in the middle of the road, using the central line as a guide line, instead of using the left lane. I tried to train the model to stay in the left lane only, but because I randomly flipped training images, the model got confused about left and right lanes, that affected stability of the car. Looks like image flipping isn't a good idea for real world multi-lane traffic.

@@ -1,4 +1,5 @@
 train/
+graph/
 .checkpoint.h5
 model.h5
 

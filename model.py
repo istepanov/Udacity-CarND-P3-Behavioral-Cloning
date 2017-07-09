@@ -133,11 +133,13 @@ def main():
     # input image is 320 x 160, RGB
     input_shape = (160, 320, 3)
 
-    # NVIDIA end-to-end learning + dropouts
-    # ref: https://arxiv.org/pdf/1604.07316.pdf
+    # NVIDIA end-to-end learning + dropouts + ELU instead of ReLU
+    # refs:
+    # * https://arxiv.org/pdf/1604.07316.pdf
+    # * https://arxiv.org/pdf/1511.07289.pdf
     model = Sequential()
-    model.add(Cropping2D(cropping=((50, 20), (0, 0)), input_shape=input_shape))
-    model.add(Lambda(lambda x: (x / 255.0) - 0.5))
+    model.add(Cropping2D(cropping=((50, 20), (0, 0)), input_shape=input_shape))     # crop 50 pixels from the top and 20 pixels from the bottom
+    model.add(Lambda(lambda x: (x / 255.0) - 0.5))      # normalize input data so every pixel value is within [-0.5, 0.5] instead of [0, 255].
     model.add(Conv2D(24, 5, 5, border_mode='valid', activation='elu', subsample=(2, 2), init='glorot_uniform'))
     model.add(Dropout(0.2))
     model.add(Conv2D(36, 5, 5, border_mode='valid', activation='elu', subsample=(2, 2), init='glorot_uniform'))
