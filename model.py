@@ -17,12 +17,12 @@ from keras import backend as K
 from keras.models import Sequential
 from keras.layers import Flatten, Dense, Lambda, Conv2D, MaxPooling2D, Dropout, Cropping2D
 from keras.optimizers import Adam
-from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 
 
 LEARNING_RATE = 0.0005
 BATCH_SIZE = 64
-EPOCHS = 30     # value is too big, but we gonna stop earlier thanks to early stopping callback
+EPOCHS = 30     # value is too big, but it might stop earlier thanks to early stopping callback
 EARLY_STOPPING_PATIENCE = 3
 
 
@@ -105,6 +105,9 @@ def main():
 
     train_samples, validation_samples = sklearn.model_selection.train_test_split(samples, test_size=0.2)
 
+    print('Train samples:', len(train_samples * 3))
+    print('Validation samples:', len(validation_samples))
+
     input_shape = (160, 320, 3)
 
     # NVIDIA
@@ -135,6 +138,7 @@ def main():
 
     model.compile(loss='mse', optimizer=Adam(lr=LEARNING_RATE))
 
+    # Keras callbacks
     checkpoint = ModelCheckpoint(
         '.checkpoint.h5',
         monitor='val_loss',
@@ -147,6 +151,8 @@ def main():
         patience=EARLY_STOPPING_PATIENCE,
         mode='min'
     )
+    tensor_board = TensorBoard(log_dir='./graph', histogram_freq=0,
+          write_graph=True, write_images=True)
 
     training_generator = generator(samples=train_samples, batch_size=BATCH_SIZE, training=True)
     validation_generator = generator(samples=validation_samples, batch_size=BATCH_SIZE)
@@ -157,7 +163,7 @@ def main():
         validation_data=validation_generator,
         nb_val_samples=len(validation_samples),
         nb_epoch=EPOCHS,
-        callbacks=[early_stopping, checkpoint]
+        callbacks=[early_stopping, checkpoint, tensor_board]
     )
 
     # reload best weight
